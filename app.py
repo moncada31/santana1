@@ -76,7 +76,7 @@ def create_interactive_plot(symbol, data, crosses, cycles):
         color = 'green' if last_close > cross_price else 'red'
         cycle_colors.append(color)
     
-    # Crear candlestick por ciclos
+    # Crear candlestick por ciclos - CORREGIDO
     for i, cycle in enumerate(cycles):
         start_idx = cycle['start']
         end_idx = min(cycle['end'], len(data) - 1)
@@ -84,7 +84,15 @@ def create_interactive_plot(symbol, data, crosses, cycles):
         
         cycle_data = data.iloc[start_idx:end_idx + 1]
         
-        # Candlestick para este ciclo
+        # Definir colores uniformes para todo el ciclo
+        if color == 'green':
+            line_color = 'darkgreen'
+            fill_color = 'rgba(0, 255, 0, 0.7)'
+        else:
+            line_color = 'darkred' 
+            fill_color = 'rgba(255, 0, 0, 0.7)'
+        
+        # Candlestick para este ciclo - TODAS LAS VELAS DEL MISMO COLOR
         fig.add_trace(
             go.Candlestick(
                 x=cycle_data.index,
@@ -92,10 +100,10 @@ def create_interactive_plot(symbol, data, crosses, cycles):
                 high=cycle_data['High'],
                 low=cycle_data['Low'],
                 close=cycle_data['Close'],
-                increasing_line_color='darkgreen' if color == 'green' else 'green',
-                decreasing_line_color='darkred' if color == 'red' else 'red',
-                increasing_fillcolor='rgba(0, 255, 0, 0.7)' if color == 'green' else 'rgba(0, 128, 0, 0.7)',
-                decreasing_fillcolor='rgba(255, 0, 0, 0.7)' if color == 'red' else 'rgba(128, 0, 0, 0.7)',
+                increasing_line_color=line_color,
+                decreasing_line_color=line_color,
+                increasing_fillcolor=fill_color,
+                decreasing_fillcolor=fill_color,
                 name=f'Ciclo {i+1} ({cycle["cross_type"]})',
                 showlegend=i == 0  # Solo mostrar leyenda para el primer ciclo
             ),
