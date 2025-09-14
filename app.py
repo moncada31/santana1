@@ -342,7 +342,7 @@ def main():
     
     # Footer
     st.markdown("---")
-    st.markdown("🔧 Desarrollado con Streamlit • 📊 Datos de Yahoo Finance")
+    st.markdown("🔧 Diseñado por Alvaro Moncada y OSP• 📊 Datos de Yahoo Finance")
 
 if __name__ == "__main__":
     main()
