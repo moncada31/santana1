@@ -8,7 +8,7 @@ import datetime
 
 # Configuración de la página
 st.set_page_config(
-    page_title="🚀 Analizador de Ciclos RSI",
+    page_title="🚀 Analizador",
     page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -56,7 +56,7 @@ def create_cycles(crosses, data_length):
         })
     return cycles
 
-def create_interactive_plot(symbol, data, crosses, cycles):
+def create_interactive_plot(symbol, data, crosses, cycles, show_price_labels):
     """Crea un gráfico interactivo con Plotly"""
     
     # Crear subplots
@@ -76,7 +76,7 @@ def create_interactive_plot(symbol, data, crosses, cycles):
         color = 'green' if last_close > cross_price else 'red'
         cycle_colors.append(color)
     
-    # Crear candlestick por ciclos - CORREGIDO
+    # Crear candlestick por ciclos
     for i, cycle in enumerate(cycles):
         start_idx = cycle['start']
         end_idx = min(cycle['end'], len(data) - 1)
@@ -92,7 +92,7 @@ def create_interactive_plot(symbol, data, crosses, cycles):
             line_color = 'darkred' 
             fill_color = 'rgba(255, 0, 0, 0.7)'
         
-        # Candlestick para este ciclo - TODAS LAS VELAS DEL MISMO COLOR
+        # Candlestick para este ciclo
         fig.add_trace(
             go.Candlestick(
                 x=cycle_data.index,
@@ -105,7 +105,7 @@ def create_interactive_plot(symbol, data, crosses, cycles):
                 increasing_fillcolor=fill_color,
                 decreasing_fillcolor=fill_color,
                 name=f'Ciclo {i+1} ({cycle["cross_type"]})',
-                showlegend=i == 0  # Solo mostrar leyenda para el primer ciclo
+                showlegend=i == 0
             ),
             row=1, col=1
         )
@@ -120,10 +120,10 @@ def create_interactive_plot(symbol, data, crosses, cycles):
         go.Scatter(
             x=cross_dates,
             y=cross_prices,
-            mode='markers+text',
+            mode='markers+text' if show_price_labels else 'markers',
             marker=dict(color='blue', size=10),
-            text=[f'${price:.2f}' for price in cross_prices],
-            textposition='middle left',
+            text=[f'${price:.2f}' for price in cross_prices] if show_price_labels else None,
+            textposition='top center',
             name='Cruces RSI',
             showlegend=True
         ),
@@ -188,13 +188,13 @@ def main():
     # Título y descripción
     st.title("🚀 Analizador de Ciclos RSI")
     st.markdown("""
-    Esta aplicación analiza ciclos RSI y colorea las velas según el resultado final de cada ciclo:
+    Esta aplicación analiza y colorea las velas según el resultado final de cada ciclo:
     - **Verde**: Cierre final > Precio de cruce
     - **Rojo**: Cierre final < Precio de cruce
     """)
     
     # Sidebar para parámetros
-    st.sidebar.header("📊 Parámetros de Análisis")
+    st.sidebar.header("📊 Parámetros de Análisis, Diseño: A.M.")
     
     # Inputs del usuario
     symbol = st.sidebar.text_input(
@@ -242,6 +242,9 @@ def main():
     rsi_period = st.sidebar.slider("Período RSI:", 5, 50, 14)
     overbought = st.sidebar.slider("Nivel sobrecompra:", 60, 90, 70)
     oversold = st.sidebar.slider("Nivel sobreventa:", 10, 40, 30)
+
+    # Opción para mostrar/ocultar etiquetas de precios
+    show_price_labels = st.sidebar.checkbox("Mostrar etiquetas de precios", value=True)
     
     # Botón de análisis
     if st.sidebar.button("🚀 Ejecutar Análisis", type="primary"):
@@ -289,7 +292,7 @@ def main():
                     st.metric("🔴 Ciclos Rojos", red_cycles)
                 
                 # Crear y mostrar gráfico
-                fig = create_interactive_plot(symbol, data, crosses, cycles)
+                fig = create_interactive_plot(symbol, data, crosses, cycles, show_price_labels)
                 st.plotly_chart(fig, use_container_width=True)
                 
                 # Tabla de cruces
