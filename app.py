@@ -162,7 +162,7 @@ def create_interactive_plot(symbol, data, crosses, cycles, show_price_labels):
     # Configurar layout
     fig.update_layout(
         title=dict(
-            text=f'{symbol} - Análisis de Ciclos RSI',
+            text=f'{symbol} - Análisis de Ciclos',
             x=0.5,
             font=dict(size=20)
         ),
@@ -186,7 +186,7 @@ def create_interactive_plot(symbol, data, crosses, cycles, show_price_labels):
 
 def main():
     # Título y descripción
-    st.title("🚀 Analizador de Ciclos RSI")
+    st.title("🚀 Analizador")
     st.markdown("""
     Esta aplicación analiza y colorea las velas según el resultado final de cada ciclo:
     - **Verde**: Cierre final > Precio de cruce
@@ -337,7 +337,7 @@ def main():
     ### ℹ️ Información
     - **Verde**: El precio de cierre final del ciclo está por encima del precio de cruce
     - **Rojo**: El precio de cierre final del ciclo está por debajo del precio de cruce
-    - Los puntos azules indican los momentos de cruce del RSI
+    - Los puntos azules indican los momentos de cruce
     """)
     
     # Footer
