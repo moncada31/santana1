@@ -14,13 +14,33 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-def calculate_rsi(prices, period=14):
-    """Calcula el RSI para una serie de precios"""
+def calculate_rsi_tradingview(prices, period=14):
+    """
+    Calcula el RSI usando el método de Wilder (igual al de TradingView)
+    Este método usa suavizado exponencial en lugar de media simple
+    """
     delta = prices.diff()
-    gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
-    loss = (-delta.where(delta < 0, 0)).rolling(window=period).mean()
-    rs = gain / loss
+    
+    # Separar ganancias y pérdidas
+    gain = delta.where(delta > 0, 0)
+    loss = -delta.where(delta < 0, 0)
+    
+    # Calcular la primera media simple para los primeros 14 períodos
+    avg_gain = gain.rolling(window=period).mean()
+    avg_loss = loss.rolling(window=period).mean()
+    
+    # Aplicar suavizado de Wilder para el resto de los datos
+    # La fórmula de Wilder: nuevo_promedio = ((período-1) * promedio_anterior + nuevo_valor) / período
+    # Esto es equivalente a EMA con alpha = 1/período
+    
+    for i in range(period, len(prices)):
+        avg_gain.iloc[i] = ((avg_gain.iloc[i-1] * (period - 1)) + gain.iloc[i]) / period
+        avg_loss.iloc[i] = ((avg_loss.iloc[i-1] * (period - 1)) + loss.iloc[i]) / period
+    
+    # Calcular RS y RSI
+    rs = avg_gain / avg_loss
     rsi = 100 - (100 / (1 + rs))
+    
     return rsi
 
 def detect_rsi_crosses(rsi_series, overbought=70, oversold=30):
@@ -29,6 +49,11 @@ def detect_rsi_crosses(rsi_series, overbought=70, oversold=30):
     for i in range(1, len(rsi_series)):
         current_rsi = rsi_series.iloc[i]
         prev_rsi = rsi_series.iloc[i-1]
+        
+        # Evitar valores NaN
+        if pd.isna(current_rsi) or pd.isna(prev_rsi):
+            continue
+            
         if prev_rsi <= overbought and current_rsi > overbought:
             crosses.append((i, 'overbought', current_rsi))
         elif prev_rsi >= oversold and current_rsi < oversold:
@@ -56,7 +81,7 @@ def create_cycles(crosses, data_length):
         })
     return cycles
 
-def create_interactive_plot(symbol, data, crosses, cycles, show_price_labels):
+def create_interactive_plot(symbol, data, crosses, cycles, show_price_labels=True):
     """Crea un gráfico interactivo con Plotly"""
     
     # Crear subplots
@@ -76,7 +101,7 @@ def create_interactive_plot(symbol, data, crosses, cycles, show_price_labels):
         color = 'green' if last_close > cross_price else 'red'
         cycle_colors.append(color)
     
-    # Crear candlestick por ciclos
+    # Crear candlestick por ciclos - CORREGIDO
     for i, cycle in enumerate(cycles):
         start_idx = cycle['start']
         end_idx = min(cycle['end'], len(data) - 1)
@@ -92,7 +117,7 @@ def create_interactive_plot(symbol, data, crosses, cycles, show_price_labels):
             line_color = 'darkred' 
             fill_color = 'rgba(255, 0, 0, 0.7)'
         
-        # Candlestick para este ciclo
+        # Candlestick para este ciclo - TODAS LAS VELAS DEL MISMO COLOR
         fig.add_trace(
             go.Candlestick(
                 x=cycle_data.index,
@@ -105,7 +130,7 @@ def create_interactive_plot(symbol, data, crosses, cycles, show_price_labels):
                 increasing_fillcolor=fill_color,
                 decreasing_fillcolor=fill_color,
                 name=f'Ciclo {i+1} ({cycle["cross_type"]})',
-                showlegend=i == 0
+                showlegend=i == 0  # Solo mostrar leyenda para el primer ciclo
             ),
             row=1, col=1
         )
@@ -123,7 +148,7 @@ def create_interactive_plot(symbol, data, crosses, cycles, show_price_labels):
             mode='markers+text' if show_price_labels else 'markers',
             marker=dict(color='blue', size=10),
             text=[f'${price:.2f}' for price in cross_prices] if show_price_labels else None,
-            textposition='top center',
+            textposition='middle left' if show_price_labels else None,
             name='Cruces RSI',
             showlegend=True
         ),
@@ -162,7 +187,7 @@ def create_interactive_plot(symbol, data, crosses, cycles, show_price_labels):
     # Configurar layout
     fig.update_layout(
         title=dict(
-            text=f'{symbol} - Análisis de Ciclos',
+            text=f'{symbol} - Análisis',
             x=0.5,
             font=dict(size=20)
         ),
@@ -188,13 +213,13 @@ def main():
     # Título y descripción
     st.title("🚀 Analizador")
     st.markdown("""
-    Esta aplicación analiza y colorea las velas según el resultado final de cada ciclo:
+    Colorea las velas según el resultado final de cada ciclo:
     - **Verde**: Cierre final > Precio de cruce
     - **Rojo**: Cierre final < Precio de cruce
     """)
     
     # Sidebar para parámetros
-    st.sidebar.header("📊 Parámetros de Análisis, Diseño: A.M.")
+    st.sidebar.header("📊 Parámetros de Análisis")
     
     # Inputs del usuario
     symbol = st.sidebar.text_input(
@@ -242,13 +267,17 @@ def main():
     rsi_period = st.sidebar.slider("Período RSI:", 5, 50, 14)
     overbought = st.sidebar.slider("Nivel sobrecompra:", 60, 90, 70)
     oversold = st.sidebar.slider("Nivel sobreventa:", 10, 40, 30)
-
-    # Opción para mostrar/ocultar etiquetas de precios
-    show_price_labels = st.sidebar.checkbox("Mostrar etiquetas de precios", value=True)
+    
+    # Opciones de visualización
+    st.sidebar.subheader("👁️ Opciones de Visualización")
+    show_price_labels = st.sidebar.checkbox(
+        "Mostrar etiquetas de precio",
+        value=True,
+        help="Muestra/oculta los precios en los puntos de cruce RSI"
+    )
     
     # Botón de análisis
-    if st.sidebar.button("🚀 Ejecutar Análisis", type="primary"):
-        
+    if st.button("🚀 Analizar", type="primary", use_container_width=True):
         with st.spinner(f"📡 Descargando datos de {symbol}..."):
             try:
                 # Descargar datos
@@ -259,8 +288,8 @@ def main():
                     st.error("❌ No se pudieron descargar los datos. Verifica el símbolo.")
                     return
                 
-                # Calcular indicadores
-                data['RSI'] = calculate_rsi(data['Close'], rsi_period)
+                # Calcular indicadores - USANDO NUEVO MÉTODO DE WILDER
+                data['RSI'] = calculate_rsi_tradingview(data['Close'], rsi_period)
                 data['OHLC_Avg'] = data.apply(calculate_ohlc_average, axis=1)
                 
                 # Detectar cruces
@@ -338,11 +367,12 @@ def main():
     - **Verde**: El precio de cierre final del ciclo está por encima del precio de cruce
     - **Rojo**: El precio de cierre final del ciclo está por debajo del precio de cruce
     - Los puntos azules indican los momentos de cruce
+    - **calculado con método de Wilder (compatible TradingView)**
     """)
     
     # Footer
     st.markdown("---")
-    st.markdown("🔧 Diseñado por Alvaro Moncada y OSP• 📊 Datos de Yahoo Finance")
+    st.markdown("🔧 Desarrollado por Alvaro Moncada y OSP • 📊 Datos de Yahoo Finance • 📈Compatible con TradingView")
 
 if __name__ == "__main__":
     main()
