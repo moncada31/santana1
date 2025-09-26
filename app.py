@@ -81,7 +81,7 @@ def create_cycles(crosses, data_length):
         })
     return cycles
 
-def create_interactive_plot(symbol, data, crosses, cycles, show_price_labels=True):
+def create_interactive_plot(symbol, data, crosses, cycles, show_price_labels=True, show_cross_points=True):
     """Crea un gráfico interactivo con Plotly"""
     
     # Crear subplots
@@ -141,19 +141,20 @@ def create_interactive_plot(symbol, data, crosses, cycles, show_price_labels=Tru
     cross_rsi = [rsi_val for idx, _, rsi_val in crosses if idx < len(data)]
     
     # Puntos de cruce en el gráfico de precios
-    fig.add_trace(
-        go.Scatter(
-            x=cross_dates,
-            y=cross_prices,
-            mode='markers+text' if show_price_labels else 'markers',
-            marker=dict(color='blue', size=10),
-            text=[f'${price:.2f}' for price in cross_prices] if show_price_labels else None,
-            textposition='middle left' if show_price_labels else None,
-            name='Cruces RSI',
-            showlegend=True
-        ),
-        row=1, col=1
-    )
+    if show_cross_points:
+        fig.add_trace(
+            go.Scatter(
+                x=cross_dates,
+                y=cross_prices,
+                mode='markers+text' if show_price_labels else 'markers',
+                marker=dict(color='blue', size=10),
+                text=[f'${price:.2f}' for price in cross_prices] if show_price_labels else None,
+                textposition='middle left' if show_price_labels else None,
+                name='Cruces RSI',
+                showlegend=True
+            ),
+            row=1, col=1
+        )
     
     # Gráfico RSI
     fig.add_trace(
@@ -172,17 +173,18 @@ def create_interactive_plot(symbol, data, crosses, cycles, show_price_labels=Tru
     fig.add_hline(y=30, line_dash="dash", line_color="green", row=2, col=1)
     
     # Puntos de cruce en RSI
-    fig.add_trace(
-        go.Scatter(
-            x=cross_dates,
-            y=cross_rsi,
-            mode='markers',
-            marker=dict(color='blue', size=8),
-            name='Cruces RSI',
-            showlegend=False
-        ),
-        row=2, col=1
-    )
+    if show_cross_points:
+        fig.add_trace(
+            go.Scatter(
+                x=cross_dates,
+                y=cross_rsi,
+                mode='markers',
+                marker=dict(color='blue', size=8),
+                name='Cruces RSI',
+                showlegend=False
+            ),
+            row=2, col=1
+        )
     
     # Configurar layout
     fig.update_layout(
@@ -275,6 +277,11 @@ def main():
         value=True,
         help="Muestra/oculta los precios en los puntos de cruce RSI"
     )
+    show_cross_points = st.sidebar.checkbox(
+        "Mostrar puntos de cruce",
+        value=True,
+        help="Muestra/oculta los puntos azules de cruce RSI"
+    )
     
     # Botón de análisis
     if st.button("🚀 Analizar", type="primary", use_container_width=True):
@@ -321,7 +328,7 @@ def main():
                     st.metric("🔴 Ciclos Rojos", red_cycles)
                 
                 # Crear y mostrar gráfico
-                fig = create_interactive_plot(symbol, data, crosses, cycles, show_price_labels)
+                fig = create_interactive_plot(symbol, data, crosses, cycles, show_price_labels, show_cross_points)
                 st.plotly_chart(fig, use_container_width=True)
                 
                 # Tabla de cruces
